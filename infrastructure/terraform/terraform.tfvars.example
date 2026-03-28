@@ -1,0 +1,9 @@
+aws_region = "us-east-1"
+environment = "dev"
+
+db_instance_class = "db.t3.micro"
+db_username       = "atmosnet"
+db_password       = "CHANGE_ME_STRONG_PASSWORD"
+
+redis_node_type   = "cache.t3.micro"
+msk_instance_type = "kafka.t3.small"

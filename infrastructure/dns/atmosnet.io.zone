@@ -1,0 +1,36 @@
+; AtmosNet DNS Zone - atmosnet.io
+; Configure these records at your DNS provider
+
+$TTL 3600
+@       IN      SOA     ns1.atmosnet.io. admin.atmosnet.io. (
+                        2024032501      ; Serial
+                        3600            ; Refresh
+                        1800            ; Retry
+                        604800          ; Expire
+                        86400 )         ; Minimum TTL
+
+; Nameservers
+        IN      NS      ns1.atmosnet.io.
+        IN      NS      ns2.atmosnet.io.
+
+; A Records
+@       IN      A       1.2.3.4         ; Root domain - update with load balancer IP
+www     IN      A       1.2.3.4         ; Update with load balancer IP
+api     IN      A       1.2.3.4         ; Update with load balancer IP
+app     IN      A       1.2.3.4         ; Update with load balancer IP
+dash    IN      A       1.2.3.4         ; Update with load balancer IP
+
+; CNAME Records
+cdn     IN      CNAME   xxx.cloudfront.net.     ; Update with CloudFront domain
+status  IN      CNAME   status.atmosnet.io.herokudns.com.  ; Status page (optional)
+
+; TXT Records for verification
+@       IN      TXT     "v=spf1 include:_spf.google.com ~all"  ; Email SPF (if using Google Workspace)
+_dmarc  IN      TXT     "v=DMARC1; p=quarantine; rua=mailto:dmarc@atmosnet.io"
+
+; MX Records (if using email)
+@       IN      MX  1   ASPMX.L.GOOGLE.COM.
+@       IN      MX  5   ALT1.ASPMX.L.GOOGLE.COM.
+@       IN      MX  5   ALT2.ASPMX.L.GOOGLE.COM.
+@       IN      MX  10  ALT3.ASPMX.L.GOOGLE.COM.
+@       IN      MX  10  ALT4.ASPMX.L.GOOGLE.COM.
