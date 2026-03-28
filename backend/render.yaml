@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: atmosnet-backend
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main_simple:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.alakazqcztizcbmewfre:g6sv0b03B1VdxYgA@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+      - key: REDIS_URL
+        value: redis://localhost:6379/0
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        value: localhost:9092
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        value: https://alakazqcztizcbmewfre.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsYWthenFjenRpemNibWV3ZnJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NzMwNzMsImV4cCI6MjA5MDA0OTA3M30.p6EKiErEpKsiqGnBTzFqynEf4in5hlqv8OPjx5xd88w
+    healthCheckPath: /health/
