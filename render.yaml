@@ -4,15 +4,13 @@ services:
     runtime: python
     plan: starter
     pythonVersion: "3.11"
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main_simple:app --host 0.0.0.0 --port $PORT
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main_simple:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
         value: postgresql://postgres:Futonnojutsu1900#@ukeecjqbalqsgtnhmcre.supabase.co:5432/postgres
       - key: REDIS_URL
         value: redis://localhost:6379/0
-      - key: KAFKA_BOOTSTRAP_SERVERS
-        value: localhost:9092
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
@@ -23,6 +21,4 @@ services:
         value: https://ukeecjqbalqsgtnhmcre.supabase.co
       - key: SUPABASE_ANON_KEY
         value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrZWVjanFiYWxxc2d0bmhtY3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg5NzMsImV4cCI6MjA5MDM1NDk3M30.DiAgWF9H-DGgjw1UWqWgumYiGhFRE7Q4g5kXjBc9G-8
-      - key: CARGO_HOME
-        value: /tmp/cargo
     healthCheckPath: /health/
