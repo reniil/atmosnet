@@ -8,7 +8,7 @@ services:
     startCommand: cd backend && uvicorn app.main_simple:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        value: postgresql://postgres:Futonnojutsu1900#@ukeecjqbalqsgtnhmcre.supabase.co:5432/postgres
+        value: postgresql://postgres:Futonnojutsu1900%23@ukeecjqbalqsgtnhmcre.supabase.co:5432/postgres
       - key: REDIS_URL
         value: redis://localhost:6379/0
       - key: ENVIRONMENT
