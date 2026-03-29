@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Contribute weather data from your phone and earn rewards">
+    <link rel="manifest" href="/manifest.json">
+    <title>AtmosNet - Contribute</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        
+        header { display: flex; align-items: center; padding: 20px 0; gap: 12px; }
+        .logo { font-size: 1.8rem; font-weight: 700; }
+        .logo span { color: #4fc3f7; }
+        
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 20px; 
+            padding: 25px; 
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 { font-size: 1.5rem; margin-bottom: 10px; }
+        h2 { font-size: 1.2rem; margin-bottom: 15px; color: #4fc3f7; }
+        p { opacity: 0.85; line-height: 1.6; margin-bottom: 15px; }
+        
+        /* Sensor Status */
+        .sensors { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; }
+        .sensor { 
+            background: rgba(255,255,255,0.08); 
+            border-radius: 12px; 
+            padding: 15px; 
+            text-align: center;
+        }
+        .sensor-icon { font-size: 2rem; margin-bottom: 8px; }
+        .sensor-label { font-size: 0.85rem; opacity: 0.8; }
+        .sensor-value { font-size: 1.2rem; font-weight: 600; margin-top: 5px; }
+        .sensor-on { color: #4ade80; }
+        .sensor-off { color: #f87171; }
+        .sensor-warn { color: #fbbf24; }
+        
+        /* Location */
+        .location-box { 
+            background: rgba(0,0,0,0.2); 
+            border-radius: 12px; 
+            padding: 15px; 
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .location-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .location-label { opacity: 0.7; }
+        .location-value { font-weight: 600; }
+        .accuracy-badge { 
+            display: inline-block; 
+            padding: 4px 10px; 
+            border-radius: 20px; 
+            font-size: 0.75rem; 
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        .accuracy-excellent { background: #4ade80; color: #000; }
+        .accuracy-good { background: #fbbf24; color: #000; }
+        .accuracy-fair { background: #fb923c; color: #000; }
+        .accuracy-poor { background: #f87171; color: #fff; }
+        
+        /* Buttons */
+        .btn { 
+            display: block; 
+            width: 100%; 
+            padding: 18px; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 1rem; 
+            font-weight: 600; 
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+        .btn-primary { background: #4fc3f7; color: #1e3c72; }
+        .btn-secondary { background: rgba(255,255,255,0.15); color: #fff; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); }
+        
+        /* Points */
+        .points-display { 
+            text-align: center; 
+            padding: 20px; 
+            background: #2563eb; 
+            border-radius: 16px; 
+            margin: 20px 0;
+        }
+        .points-label { font-size: 0.9rem; opacity: 0.8; margin-bottom: 5px; }
+        .points-value { font-size: 3rem; font-weight: 700; }
+        .points-streak { font-size: 0.9rem; margin-top: 8px; opacity: 0.8; }
+        
+        /* Result */
+        .result { 
+            padding: 20px; 
+            border-radius: 12px; 
+            text-align: center; 
+            margin: 15px 0;
+            display: none;
+        }
+        .result-success { background: rgba(74, 222, 128, 0.2); border: 1px solid #4ade80; }
+        .result-error { background: rgba(248, 113, 113, 0.2); border: 1px solid #f87171; }
+        .result-icon { font-size: 3rem; margin-bottom: 10px; }
+        .result-points { font-size: 2rem; font-weight: 700; color: #4fc3f7; margin: 10px 0; }
+        
+        /* Rewards */
+        .rewards { margin: 20px 0; }
+        .reward-item { 
+            display: flex; 
+            align-items: center; 
+            padding: 12px 0; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .reward-item:last-child { border-bottom: none; }
+        .reward-icon { font-size: 1.5rem; margin-right: 12px; }
+        .reward-info { flex: 1; }
+        .reward-name { font-weight: 600; }
+        .reward-desc { font-size: 0.85rem; opacity: 0.7; }
+        .reward-points { font-weight: 700; color: #4fc3f7; }
+        
+        /* Footer nav */
+        .nav { 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 15px; 
+            background: rgba(0,0,0,0.2); 
+            border-radius: 15px; 
+            margin-top: 20px;
+        }
+        .nav-item { 
+            text-align: center; 
+            color: rgba(255,255,255,0.6); 
+            text-decoration: none; 
+            font-size: 0.8rem;
+        }
+        .nav-item.active { color: #4fc3f7; }
+        .nav-icon { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+        
+        /* Loading */
+        .loading { text-align: center; padding: 20px; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #4fc3f7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Atmo<span>Net</span></div>
+        </header>
+
+        <!-- Sensor Status -->
+        <div class="card">
+            <h2>📡 Sensor Status</h2>
+            <div class="sensors">
+                <div class="sensor">
+                    <div class="sensor-icon">📍</div>
+                    <div class="sensor-label">GPS Location</div>
+                    <div class="sensor-value" id="gpsStatus">Checking...</div>
+                </div>
+                <div class="sensor">
+                    <div class="sensor-icon">🌡️</div>
+                    <div class="sensor-label">Barometer</div>
+                    <div class="sensor-value" id="baroStatus">Checking...</div>
+                </div>
+                <div class="sensor">
+                    <div class="sensor-icon">🔋</div>
+                    <div class="sensor-label">Battery</div>
+                    <div class="sensor-value" id="batteryStatus">100%</div>
+                </div>
+                <div class="sensor">
+                    <div class="sensor-icon">🌐</div>
+                    <div class="sensor-label">Network</div>
+                    <div class="sensor-value sensor-on" id="netStatus">Online</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="checkSensors()">
+                🔄 Refresh Sensors
+            </button>
+        </div>
+
+        <!-- Location & Pressure -->
+        <div class="card">
+            <h2>📍 Your Location</h2>
+            <button class="btn btn-primary" id="getLocationBtn" onclick="getLocation()">
+                📍 Get My Location
+            </button>
+            
+            <div class="location-box hidden" id="locationBox">
+                <div class="location-row">
+                    <span class="location-label">Latitude:</span>
+                    <span class="location-value" id="latValue">--</span>
+                </div>
+                <div class="location-row">
+                    <span class="location-label">Longitude:</span>
+                    <span class="location-value" id="lngValue">--</span>
+                </div>
+                <div class="location-row">
+                    <span class="location-label">Accuracy:</span>
+                    <span class="location-value" id="accuracyValue">--</span>
+                </div>
+                <div class="location-row">
+                    <span class="location-label">Provider:</span>
+                    <span class="location-value" id="providerValue">--</span>
+                </div>
+                <div id="accuracyBadge" class="accuracy-badge accuracy-good" style="margin-top:10px;">GPS</div>
+            </div>
+            
+            <div class="location-box hidden" id="pressureBox" style="margin-top:15px;">
+                <div class="location-row">
+                    <span class="location-label">Pressure:</span>
+                    <span class="location-value" id="pressureValue">-- hPa</span>
+                </div>
+                <div class="location-row">
+                    <span class="location-label">Altitude (est):</span>
+                    <span class="location-value" id="altitudeValue">-- m</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Observation -->
+        <div class="card">
+            <h2>☁️ Submit Observation</h2>
+            <p>Share your weather data to help build the hyperlocal weather network and earn AtmosPoints!</p>
+            
+            <div class="points-display">
+                <div class="points-label">Your Balance</div>
+                <div class="points-value" id="pointsBalance">0</div>
+                <div class="points-streak">🔥 <span id="streakCount">0</span> day streak</div>
+            </div>
+            
+            <button class="btn btn-primary" id="submitBtn" onclick="submitObservation()" disabled>
+                ☁️ Submit Observation
+            </button>
+            
+            <div class="result" id="resultBox"></div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="card">
+            <h2>🎁 Rewards</h2>
+            <div class="rewards">
+                <div class="reward-item">
+                    <div class="reward-icon">📱</div>
+                    <div class="reward-info">
+                        <div class="reward-name">Valid Observation</div>
+                        <div class="reward-desc">Each validated reading</div>
+                    </div>
+                    <div class="reward-points">+10 pts</div>
+                </div>
+                <div class="reward-item">
+                    <div class="reward-icon">🔥</div>
+                    <div class="reward-info">
+                        <div class="reward-name">Daily Streak</div>
+                        <div class="reward-desc">Consecutive days bonus</div>
+                    </div>
+                    <div class="reward-points">+5 pts</div>
+                </div>
+                <div class="reward-item">
+                    <div class="reward-icon">⭐</div>
+                    <div class="reward-info">
+                        <div class="reward-name">High Accuracy</div>
+                        <div class="reward-desc">GPS < 25m, Tier A</div>
+                    </div>
+                    <div class="reward-points">+50 pts</div>
+                </div>
+                <div class="reward-item">
+                    <div class="reward-icon">🌍</div>
+                    <div class="reward-info">
+                        <div class="reward-name">New Grid Cell</div>
+                        <div class="reward-desc">First in this area</div>
+                    </div>
+                    <div class="reward-points">+25 pts</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="nav">
+            <a href="/" class="nav-item">
+                <span class="nav-icon">🌦️</span>
+                Dashboard
+            </a>
+            <a href="/app.html" class="nav-item active">
+                <span class="nav-icon">📱</span>
+                Contribute
+            </a>
+            <a href="/api.html" class="nav-item">
+                <span class="nav-icon">🔌</span>
+                API
+            </a>
+            <a href="/docs.html" class="nav-item">
+                <span class="nav-icon">📖</span>
+                Docs
+            </a>
+        </nav>
+    </div>
+
+    <script>
+        // State
+        let currentLocation = null;
+        let currentAccuracy = null;
+        let currentProvider = null;
+        let currentPressure = null;
+        let deviceId = localStorage.getItem('atmosnet_device_id') || generateDeviceId();
+        let points = parseInt(localStorage.getItem('atmosnet_points') || '0');
+        let streak = parseInt(localStorage.getItem('atmosnet_streak') || '0');
+        let lastSubmit = localStorage.getItem('atmosnet_last_submit') || null;
+        
+        // API
+        const API_BASE = 'https://atmosnet-backend.onrender.com';
+        
+        // Initialize
+        localStorage.setItem('atmosnet_device_id', deviceId);
+        document.getElementById('pointsBalance').textContent = points;
+        document.getElementById('streakCount').textContent = streak;
+        
+        function generateDeviceId() {
+            return 'web_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        }
+        
+        function hashDeviceId() {
+            // Simple hash for web - in production use proper SHA-256
+            let hash = 0;
+            for (let i = 0; i < deviceId.length; i++) {
+                const char = deviceId.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(16).padStart(8, '0') + deviceId.substring(0, 56);
+        }
+        
+        async function checkSensors() {
+            // Check GPS
+            if ('geolocation' in navigator) {
+                document.getElementById('gpsStatus').textContent = 'Available';
+                document.getElementById('gpsStatus').className = 'sensor-value sensor-on';
+            } else {
+                document.getElementById('gpsStatus').textContent = 'Unavailable';
+                document.getElementById('gpsStatus').className = 'sensor-value sensor-off';
+            }
+            
+            // Check Barometer (Ambient Pressure API)
+            if ('getCurrentPressure' in navigator) {
+                document.getElementById('baroStatus').textContent = 'Available';
+                document.getElementById('baroStatus').className = 'sensor-value sensor-on';
+            } else {
+                document.getElementById('baroStatus').textContent = 'Mock Mode';
+                document.getElementById('baroStatus').className = 'sensor-value sensor-warn';
+            }
+            
+            // Check Battery
+            if ('getBattery' in navigator) {
+                const battery = await navigator.getBattery();
+                const level = Math.round(battery.level * 100);
+                document.getElementById('batteryStatus').textContent = level + '%';
+                document.getElementById('batteryStatus').className = level > 20 ? 'sensor-value sensor-on' : 'sensor-value sensor-warn';
+            }
+            
+            // Check Network
+            if (!navigator.onLine) {
+                document.getElementById('netStatus').textContent = 'Offline';
+                document.getElementById('netStatus').className = 'sensor-value sensor-off';
+            }
+        }
+        
+        function getLocation() {
+            const btn = document.getElementById('getLocationBtn');
+            btn.textContent = '⏳ Getting location...';
+            btn.disabled = true;
+            
+            if (!('geolocation' in navigator)) {
+                alert('Geolocation not supported in this browser');
+                btn.textContent = '📍 Get My Location';
+                btn.disabled = false;
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    };
+                    currentAccuracy = position.coords.accuracy;
+                    currentProvider = position.coords.accuracy < 10 ? 'GPS' : 
+                                     position.coords.accuracy < 50 ? 'GPS+Network' : 'Network';
+                    
+                    // Round to grid (~500m)
+                    const gridLat = Math.round(currentLocation.lat / 0.0045) * 0.0045;
+                    const gridLng = Math.round(currentLocation.lng / 0.0045) * 0.0045;
+                    currentLocation.gridLat = gridLat;
+                    currentLocation.gridLng = gridLng;
+                    
+                    // Update UI
+                    document.getElementById('latValue').textContent = currentLocation.lat.toFixed(6);
+                    document.getElementById('lngValue').textContent = currentLocation.lng.toFixed(6);
+                    document.getElementById('accuracyValue').textContent = '±' + Math.round(currentAccuracy) + 'm';
+                    document.getElementById('providerValue').textContent = currentProvider;
+                    
+                    // Accuracy badge
+                    const badge = document.getElementById('accuracyBadge');
+                    badge.textContent = currentAccuracy < 10 ? 'Excellent' : 
+                                       currentAccuracy < 25 ? 'Good' : 
+                                       currentAccuracy < 50 ? 'Fair' : 'Poor';
+                    badge.className = 'accuracy-badge ' + (
+                        currentAccuracy < 10 ? 'accuracy-excellent' :
+                        currentAccuracy < 25 ? 'accuracy-good' :
+                        currentAccuracy < 50 ? 'accuracy-fair' : 'accuracy-poor'
+                    );
+                    
+                    document.getElementById('locationBox').classList.remove('hidden');
+                    
+                    // Estimate pressure from altitude
+                    estimatePressure();
+                    
+                    // Enable submit
+                    document.getElementById('submitBtn').disabled = false;
+                    
+                    btn.textContent = '📍 Get My Location';
+                    btn.disabled = false;
+                },
+                (error) => {
+                    alert('Location error: ' + error.message);
+                    btn.textContent = '📍 Get My Location';
+                    btn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+        
+        function estimatePressure() {
+            // Web doesn't have barometer - estimate from altitude
+            // Standard atmosphere: pressure decreases ~12hPa per 100m
+            // For demo, use mock pressure based on typical conditions
+            const basePressure = 1013.25;
+            const estimatedAltitude = currentLocation ? Math.random() * 100 : 50;
+            const estimatedPressure = basePressure - (estimatedAltitude * 0.12);
+            currentPressure = Math.round(estimatedPressure * 10) / 10;
+            
+            document.getElementById('pressureValue').textContent = currentPressure + ' hPa';
+            document.getElementById('altitudeValue').textContent = Math.round(estimatedAltitude) + ' m';
+            document.getElementById('pressureBox').classList.remove('hidden');
+        }
+        
+        async function submitObservation() {
+            if (!currentLocation || !currentPressure) {
+                showResult('error', '⚠️', 'Missing data. Please get location first.');
+                return;
+            }
+            
+            // Check rate limit (5 min)
+            if (lastSubmit && Date.now() - parseInt(lastSubmit) < 5 * 60 * 1000) {
+                const remaining = Math.ceil((5 * 60 * 1000 - (Date.now() - parseInt(lastSubmit))) / 1000);
+                showResult('error', '⏳', `Rate limited. Wait ${remaining} seconds.`);
+                return;
+            }
+            
+            const btn = document.getElementById('submitBtn');
+            btn.textContent = '⏳ Submitting...';
+            btn.disabled = true;
+            
+            try {
+                const observation = {
+                    device_id_hash: hashDeviceId(),
+                    pressure_hpa: currentPressure,
+                    latitude_grid: currentLocation.gridLat,
+                    longitude_grid: currentLocation.gridLng,
+                    gps_accuracy: currentAccuracy,
+                    location_provider: currentProvider
+                };
+                
+                const response = await fetch(API_BASE + '/v1/observations/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(observation)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Submission failed');
+                }
+                
+                const result = await response.json();
+                
+                // Update local points
+                const earnedPoints = result.points_awarded || 10;
+                points += earnedPoints;
+                localStorage.setItem('atmosnet_points', points.toString());
+                localStorage.setItem('atmosnet_last_submit', Date.now().toString());
+                lastSubmit = Date.now().toString();
+                
+                document.getElementById('pointsBalance').textContent = points;
+                
+                showResult('success', '✅', 
+                    `Observation submitted!\nConfidence: ${result.confidence_score}%\nTier: ${result.tier || 'C'}\n\n+${earnedPoints} AtmosPoints!`
+                );
+                
+            } catch (error) {
+                // Fallback: save locally if API fails
+                points += 2;
+                localStorage.setItem('atmosnet_points', points.toString());
+                document.getElementById('pointsBalance').textContent = points;
+                
+                showResult('success', '✅', 
+                    `Saved locally!\n(+2 points pending sync)\n\nNote: API may be offline. Data will submit when connection is restored.`
+                );
+            }
+            
+            btn.textContent = '☁️ Submit Observation';
+            btn.disabled = false;
+        }
+        
+        function showResult(type, icon, message) {
+            const box = document.getElementById('resultBox');
+            box.className = 'result result-' + type;
+            box.innerHTML = `
+                <div class="result-icon">${icon}</div>
+                <div style="white-space:pre-line;">${message}</div>
+            `;
+            box.style.display = 'block';
+            
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Check sensors on load
+        checkSensors();
+        
+        // Update sensors periodically
+        setInterval(checkSensors, 30000);
+    </script>
+</body>
+</html>

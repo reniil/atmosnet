@@ -1,0 +1,17 @@
+{
+  "name": "AtmosNet - Weather Network",
+  "short_name": "AtmosNet",
+  "description": "Contribute weather data from your phone and earn AtmosPoints",
+  "start_url": "/app.html",
+  "display": "standalone",
+  "background_color": "#1e3c72",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%232563eb' width='100' height='100' rx='20'/><text y='.9em' x='50%' text-anchor='middle' font-size='70'>🌦️</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
