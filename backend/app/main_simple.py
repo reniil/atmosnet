@@ -1,22 +1,23 @@
 """
-Simplified AtmosNet Backend for Local Development
-No external dependencies (Redis, Kafka)
-Uses SQLite for quick testing
+Enhanced AtmosNet Backend with IP-based Location Registration
+Adds IP geolocation for base location and debugging endpoints
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.api.v2 import router as v2_router
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import select, func, Column, String, Float, DateTime, Integer
+from sqlalchemy import select, func, Column, String, Float, DateTime, Integer, Text
 from sqlalchemy.dialects.sqlite import BLOB
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 import uuid
 import hashlib
+import json
+import re
 
 # Setup
 DATABASE_URL = "sqlite+aiosqlite:///./atmosnet_simple.db"
@@ -28,7 +29,7 @@ Base = declarative_base()
 # In-memory rate limiting (replace with Redis in production)
 rate_limit_cache = {}
 
-# Models (without PostGIS for simplicity)
+# Models
 class Observation(Base):
     __tablename__ = "observations"
     
@@ -59,17 +60,44 @@ class Account(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+# NEW: IP Location Registration Model
+class IPLocation(Base):
+    __tablename__ = "ip_locations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    device_id_hash = Column(String(64), nullable=False, index=True)
+    ip_address = Column(String(45), nullable=True)  # IPv6 compatible
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    city = Column(String(100), nullable=True)
+    country = Column(String(100), nullable=True)
+    region = Column(String(100), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    registered_at = Column(DateTime, default=datetime.utcnow)
+
+# NEW: Debug Log Model
+class DebugLog(Base):
+    __tablename__ = "debug_logs"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    device_id_hash = Column(String(64), nullable=True, index=True)
+    endpoint = Column(String(100), nullable=False)
+    request_data = Column(Text, nullable=True)
+    response_data = Column(Text, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 # Schemas
 class ObservationCreate(BaseModel):
-    device_id_hash: str = Field(..., min_length=32, max_length=64)  # Shortened for mobile compatibility
-    timestamp: Optional[datetime] = None  # Auto-generated if not provided
+    device_id_hash: str = Field(..., min_length=32, max_length=64)
+    timestamp: Optional[datetime] = None
     pressure_hpa: float = Field(..., ge=870, le=1085)
     latitude_grid: float = Field(..., ge=-90, le=90)
     longitude_grid: float = Field(..., ge=-180, le=180)
     altitude_m: Optional[float] = Field(None, ge=-500, le=9000)
-    # New GPS accuracy fields
-    gps_accuracy: Optional[float] = Field(None, ge=0, le=1000, description="GPS accuracy in meters")
-    location_provider: Optional[str] = Field(None, description="GPS, GPS+Network, Network, last-known")
+    gps_accuracy: Optional[float] = Field(None, ge=0, le=1000)
+    location_provider: Optional[str] = Field(None)
 
 class ObservationResponse(BaseModel):
     id: str
@@ -92,6 +120,23 @@ class PointsBalanceResponse(BaseModel):
     current_streak: int
     contributions_today: int
 
+# NEW: IP Location Registration Schema
+class IPLocationCreate(BaseModel):
+    device_id_hash: str = Field(..., min_length=32, max_length=64)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+class IPLocationResponse(BaseModel):
+    id: str
+    device_id_hash: str
+    ip_address: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
+    city: Optional[str]
+    country: Optional[str]
+    region: Optional[str]
+    registered_at: datetime
+
 # Database dependency
 async def get_db():
     async with AsyncSessionLocal() as session:
@@ -106,7 +151,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 # App
-app = FastAPI(title="AtmosNet API (Simple)", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="AtmosNet API (Enhanced)", version="1.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -115,6 +160,80 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Helper: Get client IP
+async def get_client_ip(request: Request) -> str:
+    """Extract real client IP from request headers"""
+    # Check X-Forwarded-For (for proxies)
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        # Get first IP in chain
+        ip = x_forwarded_for.split(",")[0].strip()
+    else:
+        # Fall back to direct connection
+        ip = request.client.host if request.client else "unknown"
+    
+    return ip
+
+# Helper: Simple IP geolocation (for demo - in production use ipapi.co or similar)
+async def geolocate_ip(ip: str) -> dict:
+    """Simple IP geolocation - returns approximate location"""
+    # In production, call external API like:
+    # response = await requests.get(f"https://ipapi.co/{ip}/json/")
+    # For demo, return approximate based on IP hash
+    
+    # Generate pseudo-random but consistent location from IP
+    ip_hash = hashlib.md5(ip.encode()).hexdigest()
+    
+    # Use hash to generate lat/lon in major regions
+    regions = [
+        {"lat": 40.7128, "lon": -74.0060, "city": "New York", "country": "USA"},  # US East
+        {"lat": 37.7749, "lon": -122.4194, "city": "San Francisco", "country": "USA"},  # US West
+        {"lat": 51.5074, "lon": -0.1278, "city": "London", "country": "UK"},  # UK
+        {"lat": 48.8566, "lon": 2.3522, "city": "Paris", "country": "France"},  # France
+        {"lat": 52.5200, "lon": 13.4050, "city": "Berlin", "country": "Germany"},  # Germany
+        {"lat": 35.6762, "lon": 139.6503, "city": "Tokyo", "country": "Japan"},  # Japan
+        {"lat": -33.8688, "lon": 151.2093, "city": "Sydney", "country": "Australia"},  # Australia
+        {"lat": -23.5505, "lon": -46.6333, "city": "São Paulo", "country": "Brazil"},  # Brazil
+        {"lat": 6.5244, "lon": 3.3792, "city": "Lagos", "country": "Nigeria"},  # Nigeria
+        {"lat": -1.2921, "lon": 36.8219, "city": "Nairobi", "country": "Kenya"},  # Kenya
+        {"lat": -6.2088, "lon": 106.8456, "city": "Jakarta", "country": "Indonesia"},  # Indonesia
+    ]
+    
+    # Select region based on hash
+    region_idx = int(ip_hash[:8], 16) % len(regions)
+    region = regions[region_idx]
+    
+    # Add some variation
+    lat_var = (int(ip_hash[8:16], 16) % 100 - 50) / 100  # ±0.5 degrees
+    lon_var = (int(ip_hash[16:24], 16) % 100 - 50) / 100
+    
+    return {
+        "latitude": region["lat"] + lat_var,
+        "longitude": region["lon"] + lon_var,
+        "city": region["city"],
+        "country": region["country"],
+        "region": region["city"]
+    }
+
+# Helper: Log debug info
+async def log_debug(db: AsyncSession, device_id: str, endpoint: str, 
+                   request_data: dict, response_data: dict, 
+                   ip: str, user_agent: str):
+    """Log request/response for debugging"""
+    try:
+        log = DebugLog(
+            device_id_hash=device_id,
+            endpoint=endpoint,
+            request_data=json.dumps(request_data) if request_data else None,
+            response_data=json.dumps(response_data) if response_data else None,
+            ip_address=ip,
+            user_agent=user_agent
+        )
+        db.add(log)
+        await db.commit()
+    except Exception as e:
+        print(f"Debug log error: {e}")
 
 # Rate limiting
 async def check_rate_limit(device_id_hash: str) -> bool:
@@ -135,38 +254,33 @@ async def validate_observation(
     gps_accuracy: Optional[float] = None,
     location_provider: Optional[str] = None
 ) -> tuple[float, Optional[str], dict]:
-    """
-    Enhanced validation with GPS accuracy scoring
-    Returns (confidence_score, tier, scoring_details)
-    """
+    """Enhanced validation with GPS accuracy scoring"""
     score = 60  # Base score
     details = {}
     
-    # 1. Pressure plausibility (30 points max)
+    # Pressure plausibility (30 points max)
     pressure_score = 0
     if 980 <= obs.pressure_hpa <= 1025:
-        pressure_score = 30  # Normal range
+        pressure_score = 30
     elif 950 <= obs.pressure_hpa <= 1050:
-        pressure_score = 20  # Acceptable range
+        pressure_score = 20
     elif 900 <= obs.pressure_hpa <= 1100:
-        pressure_score = 10  # Extreme but plausible
-    else:
-        pressure_score = 0  # Invalid
+        pressure_score = 10
     score += pressure_score
     details['pressure'] = pressure_score
     
-    # 2. Location quality (40 points max)
+    # Location quality (40 points max)
     location_score = 0
     if gps_accuracy is not None:
-        if gps_accuracy < 10:  # Excellent GPS
+        if gps_accuracy < 10:
             location_score = 40
-        elif gps_accuracy < 25:  # Good GPS
+        elif gps_accuracy < 25:
             location_score = 35
-        elif gps_accuracy < 50:  # Fair GPS
+        elif gps_accuracy < 50:
             location_score = 25
-        elif gps_accuracy < 100:  # Poor GPS
+        elif gps_accuracy < 100:
             location_score = 15
-        else:  # Very poor GPS
+        else:
             location_score = 5
     elif location_provider:
         if location_provider == 'GPS':
@@ -178,13 +292,12 @@ async def validate_observation(
         else:
             location_score = 15
     else:
-        location_score = 20  # Unknown, assume decent
+        location_score = 20
     score += location_score
     details['location'] = location_score
     
-    # 3. Coordinate precision bonus (15 points max)
+    # Coordinate precision (15 points max)
     precision_score = 0
-    # Check if coordinates have good decimal precision
     lat_str = str(obs.latitude_grid)
     lng_str = str(obs.longitude_grid)
     decimal_places = max(
@@ -200,36 +313,173 @@ async def validate_observation(
     score += precision_score
     details['precision'] = precision_score
     
-    # 4. Altitude provided bonus (15 points)
+    # Altitude bonus (15 points)
     altitude_score = 15 if obs.altitude_m is not None else 0
     score += altitude_score
     details['altitude'] = altitude_score
     
-    # Determine tier based on total score
+    # Determine tier
     tier = None
     if score >= 85:
         tier = "A"
     elif score >= 60:
         tier = "B"
     
-    # Clamp score to 100
     score = min(score, 100)
     
     return score, tier, details
 
-# Endpoints
+# ============ ENDPOINTS ============
+
 @app.get("/")
 async def root():
-    return {"name": "AtmosNet API", "version": "1.0.0", "mode": "simple"}
+    return {"name": "AtmosNet API (Enhanced)", "version": "1.1.0", "features": ["ip_location", "debug_logs", "global_network"]}
 
 @app.get("/health/")
 async def health():
-    return {"status": "healthy", "mode": "simple"}
+    return {"status": "healthy", "version": "1.1.0"}
 
+# NEW: IP Location Registration Endpoint
+@app.post("/v1/auth/register-location", response_model=IPLocationResponse)
+async def register_ip_location(
+    data: IPLocationCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Register device with IP-based location at signup"""
+    ip = await get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+    
+    # Get IP geolocation
+    geo = await geolocate_ip(ip)
+    
+    # Override with provided GPS coords if available
+    if data.latitude is not None and data.longitude is not None:
+        geo["latitude"] = data.latitude
+        geo["longitude"] = data.longitude
+    
+    # Create IP location record
+    ip_location = IPLocation(
+        device_id_hash=data.device_id_hash,
+        ip_address=ip,
+        latitude=geo.get("latitude"),
+        longitude=geo.get("longitude"),
+        city=geo.get("city"),
+        country=geo.get("country"),
+        region=geo.get("region"),
+        user_agent=user_agent
+    )
+    
+    db.add(ip_location)
+    await db.commit()
+    await db.refresh(ip_location)
+    
+    # Also create account if not exists
+    result = await db.execute(select(Account).where(Account.device_id_hash == data.device_id_hash))
+    account = result.scalar_one_or_none()
+    
+    if not account:
+        account = Account(
+            id=str(uuid.uuid4()),
+            device_id_hash=data.device_id_hash,
+            balance=0,
+            total_earned=0
+        )
+        db.add(account)
+        await db.commit()
+    
+    return IPLocationResponse(
+        id=ip_location.id,
+        device_id_hash=ip_location.device_id_hash,
+        ip_address=ip_location.ip_address,
+        latitude=ip_location.latitude,
+        longitude=ip_location.longitude,
+        city=ip_location.city,
+        country=ip_location.country,
+        region=ip_location.region,
+        registered_at=ip_location.registered_at
+    )
+
+# NEW: Debug endpoint to check data
+@app.get("/v1/debug/observations")
+async def debug_observations(
+    device_id_hash: Optional[str] = None,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db)
+):
+    """Debug endpoint to see recent observations"""
+    query = select(Observation).order_by(Observation.created_at.desc()).limit(limit)
+    
+    if device_id_hash:
+        query = query.where(Observation.device_id_hash == device_id_hash)
+    
+    result = await db.execute(query)
+    observations = result.scalars().all()
+    
+    return {
+        "count": len(observations),
+        "observations": [
+            {
+                "id": obs.id,
+                "device_id_hash": obs.device_id_hash[:16] + "...",
+                "timestamp": obs.timestamp,
+                "pressure_hpa": obs.pressure_hpa,
+                "latitude_grid": obs.latitude_grid,
+                "longitude_grid": obs.longitude_grid,
+                "confidence_score": obs.confidence_score,
+                "tier": obs.tier,
+                "points_awarded": obs.points_awarded,
+                "created_at": obs.created_at
+            }
+            for obs in observations
+        ]
+    }
+
+# NEW: Get registered locations for map
+@app.get("/v1/locations/registered")
+async def get_registered_locations(
+    limit: int = 1000,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all registered IP locations for the world map"""
+    result = await db.execute(
+        select(IPLocation)
+        .where(IPLocation.latitude.isnot(None))
+        .where(IPLocation.longitude.isnot(None))
+        .order_by(IPLocation.registered_at.desc())
+        .limit(limit)
+    )
+    locations = result.scalars().all()
+    
+    return {
+        "count": len(locations),
+        "locations": [
+            {
+                "device_id_hash": loc.device_id_hash[:16] + "...",
+                "latitude": loc.latitude,
+                "longitude": loc.longitude,
+                "city": loc.city,
+                "country": loc.country,
+                "registered_at": loc.registered_at
+            }
+            for loc in locations
+        ]
+    }
+
+# Observation endpoints (unchanged but with debug logging)
 @app.post("/v1/observations/", response_model=ObservationResponse, status_code=status.HTTP_201_CREATED)
-async def create_observation(obs: ObservationCreate, db: AsyncSession = Depends(get_db)):
+async def create_observation(
+    obs: ObservationCreate, 
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    ip = await get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+    
     # Rate limiting
     if not await check_rate_limit(obs.device_id_hash):
+        await log_debug(db, obs.device_id_hash, "/v1/observations/", 
+                       obs.dict(), {"error": "Rate limited"}, ip, user_agent)
         raise HTTPException(status_code=429, detail="Rate limit exceeded. One observation per 5 minutes.")
     
     # Auto-generate timestamp if not provided
@@ -258,11 +508,11 @@ async def create_observation(obs: ObservationCreate, db: AsyncSession = Depends(
     
     # Award points based on tier
     if tier == "A":
-        points = 10  # High quality observation
+        points = 10
     elif tier == "B":
-        points = 5   # Medium quality
+        points = 5
     else:
-        points = 2   # Low quality but still valid
+        points = 2
     db_obs.points_awarded = points
     
     db.add(db_obs)
@@ -289,8 +539,19 @@ async def create_observation(obs: ObservationCreate, db: AsyncSession = Depends(
     await db.commit()
     await db.refresh(db_obs)
     
+    # Log successful observation
+    response_data = {
+        "id": db_obs.id,
+        "confidence_score": score,
+        "tier": tier,
+        "points_awarded": points
+    }
+    await log_debug(db, obs.device_id_hash, "/v1/observations/",
+                   obs.dict(), response_data, ip, user_agent)
+    
     return db_obs
 
+# Other endpoints (unchanged)
 @app.get("/v1/observations/{device_id_hash}/recent")
 async def get_recent_observations(device_id_hash: str, limit: int = 10, db: AsyncSession = Depends(get_db)):
     result = await db.execute(

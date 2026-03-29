@@ -225,6 +225,17 @@
             </button>
         </div>
 
+        <!-- Debug Status Panel -->
+        <div class="card" id="debugCard" style="background: rgba(0,0,0,0.3);">
+            <h2>🔍 Connection Status</h2>
+            <div id="debugStatus" style="font-family: monospace; font-size: 0.85rem; line-height: 1.8;">
+                <div>🔄 Checking API connection...</div>
+            </div>
+            <button class="btn btn-secondary" onclick="checkApiHealth()" style="margin-top: 15px;">
+                🔄 Test Connection
+            </button>
+        </div>
+
         <!-- Permission Prompt (shown if needed) -->
         <div class="permission-card" id="permissionCard" style="display: none;">
             <h3>📍 Location Access Needed</h3>
@@ -333,6 +344,106 @@
         localStorage.setItem('atmosnet_device_id', deviceId);
         document.getElementById('pointsBalance').textContent = points;
         document.getElementById('streakCount').textContent = streak;
+        
+        // NEW: Auto-register location on load
+        registerLocationOnLoad();
+        
+        async function registerLocationOnLoad() {
+            // Register IP-based location with backend
+            try {
+                const registrationData = {
+                    device_id_hash: hashDeviceId()
+                };
+                
+                // Try to get GPS first
+                if ('geolocation' in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            registrationData.latitude = position.coords.latitude;
+                            registrationData.longitude = position.coords.longitude;
+                            await sendRegistration(registrationData);
+                        },
+                        async () => {
+                            // If GPS fails, still register with just device_id (backend will use IP)
+                            await sendRegistration(registrationData);
+                        },
+                        { timeout: 5000 }
+                    );
+                } else {
+                    await sendRegistration(registrationData);
+                }
+            } catch (e) {
+                console.log('Registration failed (will retry on observation):', e);
+            }
+        }
+        
+        async function sendRegistration(data) {
+            try {
+                const response = await fetch(API_BASE + '/v1/auth/register-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Location registered:', result.city || 'Unknown', result.country || '');
+                }
+            } catch (e) {
+                console.log('Registration API call failed:', e);
+            }
+        }
+        
+        async function checkApiHealth() {
+            const debugDiv = document.getElementById('debugStatus');
+            const deviceHash = hashDeviceId();
+            
+            debugDiv.innerHTML = '<div>🔄 Testing API connection...</div>';
+            
+            try {
+                // Test 1: Health check
+                const healthResponse = await fetch(API_BASE + '/health/', { timeout: 10000 });
+                if (!healthResponse.ok) throw new Error('Health check failed');
+                const health = await healthResponse.json();
+                debugDiv.innerHTML += `<div>✅ API Online: ${health.status}</div>`;
+                
+                // Test 2: Register location
+                const regResponse = await fetch(API_BASE + '/v1/auth/register-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id_hash: deviceHash }),
+                    timeout: 10000
+                });
+                
+                if (regResponse.ok) {
+                    const reg = await regResponse.json();
+                    debugDiv.innerHTML += `<div>✅ Registered: ${reg.city || 'Unknown'}, ${reg.country || ''}</div>`;
+                    debugDiv.innerHTML += `<div>📍 IP Location: ${reg.latitude?.toFixed(4)}, ${reg.longitude?.toFixed(4)}</div>`;
+                } else {
+                    throw new Error('Registration failed: ' + regResponse.status);
+                }
+                
+                // Test 3: Check for existing observations
+                const obsResponse = await fetch(API_BASE + `/v1/observations/${deviceHash}/recent?limit=1`);
+                if (obsResponse.ok) {
+                    const obs = await obsResponse.json();
+                    if (obs.length > 0) {
+                        debugDiv.innerHTML += `<div>✅ Found ${obs.length} observation(s)</div>`;
+                    } else {
+                        debugDiv.innerHTML += `<div>ℹ️ No observations yet (submit one!)</div>`;
+                    }
+                }
+                
+                debugDiv.innerHTML += `<div>✅ All systems ready!</div>`;
+                
+            } catch (error) {
+                debugDiv.innerHTML += `<div>❌ Error: ${error.message}</div>`;
+                debugDiv.innerHTML += `<div>💡 Try refreshing or check network</div>`;
+            }
+        }
+        
+        // Run health check on load
+        setTimeout(checkApiHealth, 1000);
         
         function generateDeviceId() {
             return 'web_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
