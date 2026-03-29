@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - AtmosNet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px; }
+        .logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 700; }
+        .logo span { color: #4fc3f7; }
+        .nav { display: flex; gap: 25px; }
+        .nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; }
+        .nav a:hover { color: #4fc3f7; }
+        .nav a.active { color: #4fc3f7; font-weight: 600; }
+        
+        h1 { font-size: 2.5rem; margin-bottom: 15px; }
+        .subtitle { opacity: 0.8; margin-bottom: 40px; font-size: 1.1rem; }
+        
+        /* API Base URL */
+        .api-base { 
+            background: rgba(0,0,0,0.3); 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin-bottom: 40px;
+            font-family: 'Courier New', monospace;
+        }
+        .api-base code { color: #4fc3f7; font-size: 1.1rem; }
+        
+        /* Endpoints */
+        .endpoint { 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 15px; 
+            padding: 30px; 
+            margin-bottom: 25px;
+            border-left: 4px solid #4fc3f7;
+        }
+        .endpoint-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .method { 
+            background: #4caf50; 
+            color: #fff; 
+            padding: 5px 12px; 
+            border-radius: 5px; 
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .method.post { background: #2196f3; }
+        .path { font-family: 'Courier New', monospace; font-size: 1.1rem; }
+        .endpoint h3 { margin-bottom: 15px; }
+        .endpoint p { opacity: 0.9; margin-bottom: 20px; line-height: 1.6; }
+        
+        /* Code blocks */
+        .code-block { 
+            background: rgba(0,0,0,0.3); 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .code-block code { 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .code-label { 
+            font-size: 0.85rem; 
+            opacity: 0.7; 
+            margin-bottom: 10px; 
+            text-transform: uppercase;
+        }
+        
+        /* Pricing */
+        .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin: 50px 0; }
+        .pricing-card { 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 20px; 
+            padding: 35px; 
+            text-align: center;
+        }
+        .pricing-card.featured { 
+            border: 2px solid #4fc3f7; 
+            transform: scale(1.05);
+        }
+        .pricing-card h3 { font-size: 1.5rem; margin-bottom: 10px; }
+        .price { font-size: 3rem; font-weight: 700; margin: 20px 0; }
+        .price span { font-size: 1rem; opacity: 0.7; }
+        .pricing-card ul { list-style: none; text-align: left; margin: 25px 0; }
+        .pricing-card li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .pricing-card li:last-child { border-bottom: none; }
+        .pricing-card li:before { content: "✓"; margin-right: 10px; color: #4fc3f7; }
+        .pricing-btn { 
+            display: block;
+            padding: 15px; 
+            background: #4fc3f7; 
+            color: #1e3c72; 
+            border-radius: 10px; 
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        
+        /* Response codes */
+        .response-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0;
+        }
+        .response-table th, .response-table td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .response-table th { opacity: 0.7; font-weight: 600; }
+        .status-200 { color: #4caf50; }
+        .status-400 { color: #ff9800; }
+        .status-401 { color: #f44336; }
+        .status-429 { color: #ff5722; }
+        
+        footer { margin-top: 50px; padding: 30px 0; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; opacity: 0.6; }
+        
+        @media (max-width: 768px) {
+            .pricing { grid-template-columns: 1fr; }
+            .pricing-card.featured { transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Atmo<span>Net</span></div>
+            <nav class="nav">
+                <a href="/">Dashboard</a>
+                <a href="/contribute.html">Contribute</a>
+                <a href="/api.html" class="active">API</a>
+                <a href="/docs.html">Docs</a>
+            </nav>
+        </header>
+
+        <h1>API Documentation</h1>
+        <p class="subtitle">Integrate hyperlocal weather data into your applications with our REST API.</p>
+
+        <div class="api-base">
+            <strong>Base URL:</strong> <code>https://atmosnet-backend.onrender.com</code>
+        </div>
+
+        <!-- Submit Observation -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method post">POST</span>
+                <span class="path">/v1/observations/</span>
+            </div>
+            <h3>Submit Observation</h3>
+            <p>Submit a barometric pressure observation from a device. Returns confidence score and points awarded.</p>
+            
+            <div class="code-label">Request Body</div>
+            <div class="code-block">
+<code>{
+  "device_id_hash": "abc123...",
+  "pressure_hpa": 1013.25,
+  "latitude": 6.5244,
+  "longitude": 3.3792,
+  "altitude_m": 50.0
+}</code>
+            </div>
+
+            <div class="code-label">Response</div>
+            <div class="code-block">
+<code>{
+  "id": "uuid-string",
+  "confidence_score": 90,
+  "tier": "A",
+  "points_awarded": 10
+}</code>
+            </div>
+        </div>
+
+        <!-- Get Recent Observations -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method">GET</span>
+                <span class="path">/v1/observations/{device_id}/recent</span>
+            </div>
+            <h3>Get Recent Observations</h3>
+            <p>Retrieve recent observations for a specific device.</p>
+
+            <div class="code-label">Response</div>
+            <div class="code-block">
+<code>{
+  "observations": [
+    {
+      "id": "uuid",
+      "pressure_hpa": 1013.25,
+      "timestamp": "2026-03-29T12:00:00Z",
+      "points_awarded": 10
+    }
+  ]
+}</code>
+            </div>
+        </div>
+
+        <!-- Get Network Stats -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method">GET</span>
+                <span class="path">/v1/observations/stats/network</span>
+            </div>
+            <h3>Get Network Statistics</h3>
+            <p>Get aggregated statistics for the entire network over the last 24 hours.</p>
+
+            <div class="code-label">Response</div>
+            <div class="code-block">
+<code>{
+  "total_observations_24h": 125000,
+  "active_devices": 12450,
+  "average_confidence": 94.2,
+  "tier_breakdown": {
+    "A": 85000,
+    "B": 30000,
+    "C": 10000
+  }
+}</code>
+            </div>
+        </div>
+
+        <!-- Get Rewards Balance -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method">GET</span>
+                <span class="path">/v1/rewards/balance/{device_id}</span>
+            </div>
+            <h3>Get Rewards Balance</h3>
+            <p>Get the current AtmosPoints balance and total earnings for a device.</p>
+
+            <div class="code-label">Response</div>
+            <div class="code-block">
+<code>{
+  "balance": 250,
+  "total_earned": 1500,
+  "total_redeemed": 1250,
+  "current_streak": 7
+}</code>
+            </div>
+        </div>
+
+        <!-- Response Codes -->
+        <h2 style="margin: 40px 0 20px;">Response Codes</h2>
+        <table class="response-table">
+            <tr>
+                <th>Code</th>
+                <th>Meaning</th>
+            </tr>
+            <tr>
+                <td class="status-200">200</td>
+                <td>Success</td>
+            </tr>
+            <tr>
+                <td class="status-201">201</td>
+                <td>Created (observation submitted)</td>
+            </tr>
+            <tr>
+                <td class="status-400">400</td>
+                <td>Bad Request (invalid data)</td>
+            </tr>
+            <tr>
+                <td class="status-401">401</td>
+                <td>Unauthorized</td>
+            </tr>
+            <tr>
+                <td class="status-429">429</td>
+                <td>Rate Limited (1 observation per 5 minutes per device)</td>
+            </tr>
+        </table>
+
+        <!-- Pricing -->
+        <h2 style="margin: 50px 0 30px;">API Pricing</h2>
+        <div class="pricing">
+            <div class="pricing-card">
+                <h3>Free</h3>
+                <div class="price">$0<span>/month</span></div>
+                <ul>
+                    <li>1,000 API calls/day</li>
+                    <li>5km resolution</li>
+                    <li>Current conditions</li>
+                    <li>Basic forecast</li>
+                    <li>Community support</li>
+                </ul>
+                <a href="#" class="pricing-btn">Get Started</a>
+            </div>
+            <div class="pricing-card featured">
+                <h3>Standard</h3>
+                <div class="price">$299<span>/month</span></div>
+                <ul>
+                    <li>100,000 API calls/day</li>
+                    <li>1km resolution</li>
+                    <li>72-hour forecast</li>
+                    <li>Historical data</li>
+                    <li>Email support</li>
+                </ul>
+                <a href="#" class="pricing-btn">Start Trial</a>
+            </div>
+            <div class="pricing-card">
+                <h3>Enterprise</h3>
+                <div class="price">Custom</span></div>
+                <ul>
+                    <li>Unlimited API calls</li>
+                    <li>500m resolution</li>
+                    <li>Real-time data</li>
+                    <li>Custom integrations</li>
+                    <li>Dedicated support</li>
+                </ul>
+                <a href="#" class="pricing-btn">Contact Sales</a>
+            </div>
+        </div>
+
+        <footer>
+            <p>AtmosNet API v1.0 - Base URL: https://atmosnet-backend.onrender.com</p>
+        </footer>
+    </div>
+</body>
+</html>

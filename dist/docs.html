@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - AtmosNet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #fff;
+            line-height: 1.6;
+        }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px; }
+        .logo { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 700; }
+        .logo span { color: #4fc3f7; }
+        .nav { display: flex; gap: 25px; }
+        .nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; }
+        .nav a:hover { color: #4fc3f7; }
+        .nav a.active { color: #4fc3f7; font-weight: 600; }
+        
+        h1 { font-size: 2.2rem; margin-bottom: 15px; }
+        h2 { font-size: 1.8rem; margin: 30px 0 15px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        h3 { font-size: 1.3rem; margin: 20px 0 10px; color: #4fc3f7; }
+        p { margin-bottom: 15px; opacity: 0.9; }
+        
+        ul { margin: 15px 0 15px 20px; }
+        li { margin-bottom: 8px; opacity: 0.9; }
+        
+        code { 
+            background: rgba(0,0,0,0.3); 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre { 
+            background: rgba(0,0,0,0.3); 
+            border-radius: 10px; 
+            padding: 20px; 
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        pre code { 
+            background: none; 
+            padding: 0; 
+            display: block;
+            line-height: 1.5;
+        }
+        
+        .info-box {
+            background: rgba(79, 195, 247, 0.1);
+            border-left: 4px solid #4fc3f7;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .warning-box {
+            background: rgba(255, 152, 0, 0.1);
+            border-left: 4px solid #ff9800;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .quick-link {
+            display: inline-block;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 5px;
+            margin: 5px;
+            text-decoration: none;
+            color: #4fc3f7;
+            font-size: 0.9rem;
+        }
+        .quick-link:hover { background: rgba(255,255,255,0.2); }
+        
+        footer { margin-top: 50px; padding: 30px 0; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Atmo<span>Net</span></div>
+            <nav class="nav">
+                <a href="/">Dashboard</a>
+                <a href="/contribute.html">Contribute</a>
+                <a href="/api.html">API</a>
+                <a href="/docs.html" class="active">Docs</a>
+            </nav>
+        </header>
+
+        <h1>AtmosNet Documentation</h1>
+        <p>Complete guide to understanding, using, and contributing to the world's most accurate hyperlocal weather network.</p>
+
+        <div class="info-box">
+            <strong>Quick Links:</strong><br>
+            <a href="/api.html" class="quick-link">API Reference</a>
+            <a href="/contribute.html" class="quick-link">Contribute Data</a>
+            <a href="#privacy" class="quick-link">Privacy</a>
+            <a href="#architecture" class="quick-link">Architecture</a>
+        </div>
+
+        <h2>What is AtmosNet?</h2>
+        <p>AtmosNet is a decentralized hyperlocal weather intelligence network that collects barometric pressure data from smartphones across Lagos, Nairobi, and Jakarta. Unlike traditional weather services that rely on sparse weather stations, AtmosNet creates dense, real-time weather maps using crowdsourced data from everyday devices.</p>
+
+        <h2>How It Works</h2>
+        <ol>
+            <li><strong>Data Collection:</strong> Mobile apps collect barometric pressure readings (and optionally temperature/humidity) from device sensors.</li>
+            <li><strong>Privacy Protection:</strong> GPS coordinates are rounded to ~500m precision, device IDs are hashed with SHA-256. No personal data is stored.</li>
+            <li><strong>Validation:</strong> Each observation is validated against nearby readings using statistical outlier detection. Valid observations earn AtmosPoints.</li>
+            <li><strong>Aggregation:</strong> Validated data is aggregated into a grid-based weather model that updates in real-time.</li>
+            <li><strong>Distribution:</strong> API consumers access weather data via REST endpoints with free and paid tiers.</li>
+        </ol>
+
+        <h2 id="architecture">Architecture</h2>
+        <h3>Technology Stack</h3>
+        <ul>
+            <li><strong>Backend:</strong> FastAPI (Python 3.11+) with async processing</li>
+            <li><strong>Database:</strong> Supabase (PostgreSQL + PostGIS for geospatial queries)</li>
+            <li><strong>Frontend:</strong> Static HTML/CSS/JS hosted on Netlify</li>
+            <li><strong>Deployment:</strong> Render (backend) + Netlify (frontend)</li>
+            <li><strong>Mobile:</strong> React Native + Expo</li>
+        </ul>
+
+        <h3>Data Flow</h3>
+        <pre><code>Mobile App → FastAPI → Database → Validation Engine → Grid Model → API Consumers</code></pre>
+
+        <h2 id="api">API Reference</h2>
+        <p>See the <a href="/api.html" style="color:#4fc3f7;">API Documentation page</a> for complete endpoint specifications, request/response formats, and code examples.</p>
+
+        <div class="info-box">
+            <strong>Base URL:</strong> <code>https://atmosnet-backend.onrender.com</code>
+        </div>
+
+        <h2>Contributing Data</h2>
+        <p>Earn AtmosPoints by sharing weather data from your phone:</p>
+        <ol>
+            <li>Download the AtmosNet mobile app (iOS/Android) - <em>coming soon</em></li>
+            <li>Allow sensor and location permissions</li>
+            <li>Data is automatically collected in the background (or manually submit)</li>
+            <li>Each validated observation earns 10 points + bonuses</li>
+            <li>Track your streak and compete on the leaderboard</li>
+        </ol>
+
+        <h3>Rewards Tiers</h3>
+        <ul>
+            <li><strong>Basic:</strong> 10 points per valid observation</li>
+            <li><strong>Tier A Bonus:</strong> +50 points for high-accuracy readings</li>
+            <li><strong>Streak Bonus:</strong> +5 points per consecutive day (multiplies)</li>
+            <li><strong>New Grid Cell:</strong> +25 points for first observation in a cell</li>
+            <li><strong>Weekly Champion:</strong> +500 points bonus</li>
+        </ul>
+
+        <h2 id="privacy">Privacy & Security</h2>
+        <p>We take privacy seriously. All data is anonymized before transmission:</p>
+        <ul>
+            <li><strong>Location:</strong> GPS coordinates rounded to ~500m precision</li>
+            <li><strong>Device ID:</strong> Hashed with SHA-256 (unrecoverable)</li>
+            <li><strong>Data Collected:</strong> Only barometric pressure, timestamp, and approximate location</li>
+            <li><strong>Personal Data:</strong> No names, emails, or phone numbers stored</li>
+            <li><strong>Transmission:</strong> HTTPS encrypted, no data sold to third parties</li>
+            <li><strong>Controls:</strong> Users can opt-out anytime, delete their data, or use manual mode</li>
+        </ul>
+
+        <h2>For Developers</h2>
+        <h3>Integration</h3>
+        <p>Integrate AtmosNet weather data into your application:</p>
+        <ul>
+            <li>Sign up for an API key (Free: 1,000 calls/day)</li>
+            <li>Make HTTP requests to the endpoints</li>
+            <li>Parse JSON responses and display in your app</li>
+            <li>Cache responses to stay within rate limits</li>
+        </ul>
+
+        <div class="warning-box">
+            <strong>Important:</strong> The mobile app is not yet available. Data contribution features will be enabled after the app launch. In the meantime, you can test the API using the endpoints.
+        </div>
+
+        <h2>Launch Plan</h2>
+        <p>AtmosNet is rolling out in phases:</p>
+        <table style="width:100%; border-collapse: collapse; margin: 15px 0;">
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <th style="text-align:left; padding:10px;">Phase</th>
+                <th style="text-align:left; padding:10px;">Target</th>
+                <th style="text-align:left; padding:10px;">Status</th>
+            </tr>
+            <tr><td style="padding:10px;"> Lagos Launch</td><td>5,000 sensors</td><td>✅ In Progress</td></tr>
+            <tr><td style="padding:10px;"> Nairobi Launch</td><td>7,000 sensors</td><td>⏳ Planned</td></tr>
+            <tr><td style="padding:10px;"> Jakarta Launch</td><td>5,000 sensors</td><td>⏳ Planned</td>
+            <tr><td style="padding:10px;"> Expansion</td><td>Accra, Dar es Salaam</td><td>⏳ Future</td></tr>
+        </table>
+
+        <h2>Contact & Support</h2>
+        <ul>
+            <li><strong>GitHub:</strong> <a href="https://github.com/reniil/atmosnet" style="color:#4fc3f7;">github.com/reniil/atmosnet</a></li>
+            <li><strong>Email:</strong> support@atmosnet.io</li>
+            <li><strong>Discord:</strong> Join our community server</li>
+        </ul>
+
+        <footer>
+            <p>AtmosNet Documentation v1.0 | Built with ❤️ for better weather</p>
+        </footer>
+    </div>
+</body>
+</html>
