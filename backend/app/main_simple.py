@@ -61,12 +61,15 @@ class Account(Base):
 
 # Schemas
 class ObservationCreate(BaseModel):
-    device_id_hash: str = Field(..., min_length=64, max_length=64)
-    timestamp: datetime
+    device_id_hash: str = Field(..., min_length=32, max_length=64)  # Shortened for mobile compatibility
+    timestamp: Optional[datetime] = None  # Auto-generated if not provided
     pressure_hpa: float = Field(..., ge=870, le=1085)
     latitude_grid: float = Field(..., ge=-90, le=90)
     longitude_grid: float = Field(..., ge=-180, le=180)
     altitude_m: Optional[float] = Field(None, ge=-500, le=9000)
+    # New GPS accuracy fields
+    gps_accuracy: Optional[float] = Field(None, ge=0, le=1000, description="GPS accuracy in meters")
+    location_provider: Optional[str] = Field(None, description="GPS, GPS+Network, Network, last-known")
 
 class ObservationResponse(BaseModel):
     id: str
@@ -127,23 +130,92 @@ async def check_rate_limit(device_id_hash: str) -> bool:
     return True
 
 # Validation
-async def validate_observation(obs: Observation) -> tuple[float, Optional[str]]:
-    """Simple validation - returns (confidence_score, tier)"""
-    score = 70  # Base score
+async def validate_observation(
+    obs: Observation, 
+    gps_accuracy: Optional[float] = None,
+    location_provider: Optional[str] = None
+) -> tuple[float, Optional[str], dict]:
+    """
+    Enhanced validation with GPS accuracy scoring
+    Returns (confidence_score, tier, scoring_details)
+    """
+    score = 60  # Base score
+    details = {}
     
-    # Check pressure plausibility
-    if 950 <= obs.pressure_hpa <= 1050:
-        score += 20
+    # 1. Pressure plausibility (30 points max)
+    pressure_score = 0
+    if 980 <= obs.pressure_hpa <= 1025:
+        pressure_score = 30  # Normal range
+    elif 950 <= obs.pressure_hpa <= 1050:
+        pressure_score = 20  # Acceptable range
     elif 900 <= obs.pressure_hpa <= 1100:
-        score += 10
-    
-    # Determine tier
-    if score >= 85:
-        return score, "A"
-    elif score >= 60:
-        return score, "B"
+        pressure_score = 10  # Extreme but plausible
     else:
-        return score, None
+        pressure_score = 0  # Invalid
+    score += pressure_score
+    details['pressure'] = pressure_score
+    
+    # 2. Location quality (40 points max)
+    location_score = 0
+    if gps_accuracy is not None:
+        if gps_accuracy < 10:  # Excellent GPS
+            location_score = 40
+        elif gps_accuracy < 25:  # Good GPS
+            location_score = 35
+        elif gps_accuracy < 50:  # Fair GPS
+            location_score = 25
+        elif gps_accuracy < 100:  # Poor GPS
+            location_score = 15
+        else:  # Very poor GPS
+            location_score = 5
+    elif location_provider:
+        if location_provider == 'GPS':
+            location_score = 35
+        elif location_provider == 'GPS+Network':
+            location_score = 30
+        elif location_provider == 'Network':
+            location_score = 20
+        else:
+            location_score = 15
+    else:
+        location_score = 20  # Unknown, assume decent
+    score += location_score
+    details['location'] = location_score
+    
+    # 3. Coordinate precision bonus (15 points max)
+    precision_score = 0
+    # Check if coordinates have good decimal precision
+    lat_str = str(obs.latitude_grid)
+    lng_str = str(obs.longitude_grid)
+    decimal_places = max(
+        len(lat_str.split('.')[-1]) if '.' in lat_str else 0,
+        len(lng_str.split('.')[-1]) if '.' in lng_str else 0
+    )
+    if decimal_places >= 5:
+        precision_score = 15
+    elif decimal_places >= 4:
+        precision_score = 10
+    elif decimal_places >= 3:
+        precision_score = 5
+    score += precision_score
+    details['precision'] = precision_score
+    
+    # 4. Altitude provided bonus (15 points)
+    altitude_score = 15 if obs.altitude_m is not None else 0
+    score += altitude_score
+    details['altitude'] = altitude_score
+    
+    # Determine tier based on total score
+    tier = None
+    if score >= 85:
+        tier = "A"
+    elif score >= 60:
+        tier = "B"
+    
+    # Clamp score to 100
+    score = min(score, 100)
+    
+    return score, tier, details
 
 # Endpoints
 @app.get("/")
@@ -160,25 +232,37 @@ async def create_observation(obs: ObservationCreate, db: AsyncSession = Depends(
     if not await check_rate_limit(obs.device_id_hash):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. One observation per 5 minutes.")
     
+    # Auto-generate timestamp if not provided
+    timestamp = obs.timestamp or datetime.utcnow()
+    
     # Create observation
     db_obs = Observation(
         id=str(uuid.uuid4()),
         device_id_hash=obs.device_id_hash,
-        timestamp=obs.timestamp,
+        timestamp=timestamp,
         pressure_hpa=obs.pressure_hpa,
         latitude_grid=obs.latitude_grid,
         longitude_grid=obs.longitude_grid,
         altitude_m=obs.altitude_m
     )
     
-    # Validate
-    score, tier = await validate_observation(db_obs)
+    # Validate with GPS accuracy info
+    score, tier, details = await validate_observation(
+        db_obs, 
+        gps_accuracy=obs.gps_accuracy,
+        location_provider=obs.location_provider
+    )
     db_obs.confidence_score = score
     db_obs.tier = tier
     db_obs.validated_at = datetime.utcnow()
     
-    # Award points
-    points = 10 if tier == "A" else (4 if tier == "B" else 0)
+    # Award points based on tier
+    if tier == "A":
+        points = 10  # High quality observation
+    elif tier == "B":
+        points = 5   # Medium quality
+    else:
+        points = 2   # Low quality but still valid
     db_obs.points_awarded = points
     
     db.add(db_obs)
