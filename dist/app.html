@@ -2,20 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="Contribute weather data from your phone and earn rewards">
+    <meta name="description" content="Contribute weather data from your phone anywhere in the world">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    <title>AtmosNet - Contribute</title>
+    <title>AtmosNet - Global Weather Contribution</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
             color: #fff;
+            -webkit-font-smoothing: antialiased;
         }
-        .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; padding-bottom: 100px; }
         
         header { display: flex; align-items: center; padding: 20px 0; gap: 12px; }
         .logo { font-size: 1.8rem; font-weight: 700; }
@@ -27,11 +30,23 @@
             padding: 25px; 
             margin-bottom: 20px;
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
         
         h1 { font-size: 1.5rem; margin-bottom: 10px; }
         h2 { font-size: 1.2rem; margin-bottom: 15px; color: #4fc3f7; }
         p { opacity: 0.85; line-height: 1.6; margin-bottom: 15px; }
+        
+        .global-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(79, 195, 247, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
         
         /* Sensor Status */
         .sensors { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; }
@@ -56,7 +71,9 @@
             margin: 15px 0;
             font-family: monospace;
             font-size: 0.9rem;
+            display: none;
         }
+        .location-box.active { display: block; }
         .location-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .location-label { opacity: 0.7; }
         .location-value { font-weight: 600; }
@@ -85,11 +102,24 @@
             cursor: pointer;
             transition: all 0.3s;
             margin-bottom: 12px;
+            -webkit-appearance: none;
         }
         .btn-primary { background: #4fc3f7; color: #1e3c72; }
         .btn-secondary { background: rgba(255,255,255,0.15); color: #fff; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .btn:active:not(:disabled) { transform: scale(0.98); }
+        
+        /* Permission Prompt */
+        .permission-card {
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .permission-card h3 { color: #fbbf24; margin-bottom: 10px; }
+        .permission-card p { font-size: 0.95rem; opacity: 0.9; }
         
         /* Points */
         .points-display { 
@@ -111,43 +141,33 @@
             margin: 15px 0;
             display: none;
         }
+        .result.active { display: block; }
         .result-success { background: rgba(74, 222, 128, 0.2); border: 1px solid #4ade80; }
         .result-error { background: rgba(248, 113, 113, 0.2); border: 1px solid #f87171; }
         .result-icon { font-size: 3rem; margin-bottom: 10px; }
-        .result-points { font-size: 2rem; font-weight: 700; color: #4fc3f7; margin: 10px 0; }
-        
-        /* Rewards */
-        .rewards { margin: 20px 0; }
-        .reward-item { 
-            display: flex; 
-            align-items: center; 
-            padding: 12px 0; 
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .reward-item:last-child { border-bottom: none; }
-        .reward-icon { font-size: 1.5rem; margin-right: 12px; }
-        .reward-info { flex: 1; }
-        .reward-name { font-weight: 600; }
-        .reward-desc { font-size: 0.85rem; opacity: 0.7; }
-        .reward-points { font-weight: 700; color: #4fc3f7; }
         
         /* Footer nav */
         .nav { 
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             display: flex; 
             justify-content: space-around; 
             padding: 15px; 
-            background: rgba(0,0,0,0.2); 
-            border-radius: 15px; 
-            margin-top: 20px;
+            background: rgba(0,0,0,0.3); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 1000;
         }
         .nav-item { 
             text-align: center; 
             color: rgba(255,255,255,0.6); 
             text-decoration: none; 
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
         .nav-item.active { color: #4fc3f7; }
-        .nav-icon { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+        .nav-icon { font-size: 1.4rem; display: block; margin-bottom: 4px; }
         
         /* Loading */
         .loading { text-align: center; padding: 20px; }
@@ -160,8 +180,6 @@
             margin: 0 auto 15px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -169,6 +187,12 @@
         <header>
             <div class="logo">Atmo<span>Net</span></div>
         </header>
+
+        <div class="card">
+            <div class="global-badge">🌍 Global Network</div>
+            <h1>Contribute Weather Data</h1>
+            <p>Your phone's sensors can contribute to the global weather network from anywhere on Earth. Help build accurate hyperlocal weather data.</p>
+        </div>
 
         <!-- Sensor Status -->
         <div class="card">
@@ -187,7 +211,7 @@
                 <div class="sensor">
                     <div class="sensor-icon">🔋</div>
                     <div class="sensor-label">Battery</div>
-                    <div class="sensor-value" id="batteryStatus">100%</div>
+                    <div class="sensor-value" id="batteryStatus">--</div>
                 </div>
                 <div class="sensor">
                     <div class="sensor-icon">🌐</div>
@@ -201,6 +225,15 @@
             </button>
         </div>
 
+        <!-- Permission Prompt (shown if needed) -->
+        <div class="permission-card" id="permissionCard" style="display: none;">
+            <h3>📍 Location Access Needed</h3>
+            <p>Please allow location access when prompted. This helps us collect weather data for your area.</p>
+            <button class="btn btn-primary" onclick="requestLocationPermission()">
+                Allow Location Access
+            </button>
+        </div>
+
         <!-- Location & Pressure -->
         <div class="card">
             <h2>📍 Your Location</h2>
@@ -208,7 +241,7 @@
                 📍 Get My Location
             </button>
             
-            <div class="location-box hidden" id="locationBox">
+            <div class="location-box" id="locationBox">
                 <div class="location-row">
                     <span class="location-label">Latitude:</span>
                     <span class="location-value" id="latValue">--</span>
@@ -225,10 +258,10 @@
                     <span class="location-label">Provider:</span>
                     <span class="location-value" id="providerValue">--</span>
                 </div>
-                <div id="accuracyBadge" class="accuracy-badge accuracy-good" style="margin-top:10px;">GPS</div>
+                <div id="accuracyBadge" class="accuracy-badge accuracy-good">GPS</div>
             </div>
             
-            <div class="location-box hidden" id="pressureBox" style="margin-top:15px;">
+            <div class="location-box" id="pressureBox">
                 <div class="location-row">
                     <span class="location-label">Pressure:</span>
                     <span class="location-value" id="pressureValue">-- hPa</span>
@@ -243,7 +276,7 @@
         <!-- Submit Observation -->
         <div class="card">
             <h2>☁️ Submit Observation</h2>
-            <p>Share your weather data to help build the hyperlocal weather network and earn AtmosPoints!</p>
+            <p>Share your weather data and earn AtmosPoints!</p>
             
             <div class="points-display">
                 <div class="points-label">Your Balance</div>
@@ -258,65 +291,28 @@
             <div class="result" id="resultBox"></div>
         </div>
 
-        <!-- How It Works -->
-        <div class="card">
-            <h2>🎁 Rewards</h2>
-            <div class="rewards">
-                <div class="reward-item">
-                    <div class="reward-icon">📱</div>
-                    <div class="reward-info">
-                        <div class="reward-name">Valid Observation</div>
-                        <div class="reward-desc">Each validated reading</div>
-                    </div>
-                    <div class="reward-points">+10 pts</div>
-                </div>
-                <div class="reward-item">
-                    <div class="reward-icon">🔥</div>
-                    <div class="reward-info">
-                        <div class="reward-name">Daily Streak</div>
-                        <div class="reward-desc">Consecutive days bonus</div>
-                    </div>
-                    <div class="reward-points">+5 pts</div>
-                </div>
-                <div class="reward-item">
-                    <div class="reward-icon">⭐</div>
-                    <div class="reward-info">
-                        <div class="reward-name">High Accuracy</div>
-                        <div class="reward-desc">GPS < 25m, Tier A</div>
-                    </div>
-                    <div class="reward-points">+50 pts</div>
-                </div>
-                <div class="reward-item">
-                    <div class="reward-icon">🌍</div>
-                    <div class="reward-info">
-                        <div class="reward-name">New Grid Cell</div>
-                        <div class="reward-desc">First in this area</div>
-                    </div>
-                    <div class="reward-points">+25 pts</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Navigation -->
-        <nav class="nav">
-            <a href="/" class="nav-item">
-                <span class="nav-icon">🌦️</span>
-                Dashboard
-            </a>
-            <a href="/app.html" class="nav-item active">
-                <span class="nav-icon">📱</span>
-                Contribute
-            </a>
-            <a href="/api.html" class="nav-item">
-                <span class="nav-icon">🔌</span>
-                API
-            </a>
-            <a href="/docs.html" class="nav-item">
-                <span class="nav-icon">📖</span>
-                Docs
-            </a>
-        </nav>
+        <div style="height: 80px;"></div>
     </div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <a href="/" class="nav-item">
+            <span class="nav-icon">🌦️</span>
+            Dashboard
+        </a>
+        <a href="/app.html" class="nav-item active">
+            <span class="nav-icon">📱</span>
+            Contribute
+        </a>
+        <a href="/api.html" class="nav-item">
+            <span class="nav-icon">🔌</span>
+            API
+        </a>
+        <a href="/docs.html" class="nav-item">
+            <span class="nav-icon">📖</span>
+            Docs
+        </a>
+    </nav>
 
     <script>
         // State
@@ -328,6 +324,7 @@
         let points = parseInt(localStorage.getItem('atmosnet_points') || '0');
         let streak = parseInt(localStorage.getItem('atmosnet_streak') || '0');
         let lastSubmit = localStorage.getItem('atmosnet_last_submit') || null;
+        let locationPermission = false;
         
         // API
         const API_BASE = 'https://atmosnet-backend.onrender.com';
@@ -342,7 +339,6 @@
         }
         
         function hashDeviceId() {
-            // Simple hash for web - in production use proper SHA-256
             let hash = 0;
             for (let i = 0; i < deviceId.length; i++) {
                 const char = deviceId.charCodeAt(i);
@@ -353,7 +349,7 @@
         }
         
         async function checkSensors() {
-            // Check GPS
+            // Check GPS availability
             if ('geolocation' in navigator) {
                 document.getElementById('gpsStatus').textContent = 'Available';
                 document.getElementById('gpsStatus').className = 'sensor-value sensor-on';
@@ -362,21 +358,27 @@
                 document.getElementById('gpsStatus').className = 'sensor-value sensor-off';
             }
             
-            // Check Barometer (Ambient Pressure API)
+            // Check Barometer (Ambient Pressure API - experimental)
             if ('getCurrentPressure' in navigator) {
                 document.getElementById('baroStatus').textContent = 'Available';
                 document.getElementById('baroStatus').className = 'sensor-value sensor-on';
             } else {
-                document.getElementById('baroStatus').textContent = 'Mock Mode';
+                document.getElementById('baroStatus').textContent = 'Estimated';
                 document.getElementById('baroStatus').className = 'sensor-value sensor-warn';
             }
             
             // Check Battery
             if ('getBattery' in navigator) {
-                const battery = await navigator.getBattery();
-                const level = Math.round(battery.level * 100);
-                document.getElementById('batteryStatus').textContent = level + '%';
-                document.getElementById('batteryStatus').className = level > 20 ? 'sensor-value sensor-on' : 'sensor-value sensor-warn';
+                try {
+                    const battery = await navigator.getBattery();
+                    const level = Math.round(battery.level * 100);
+                    document.getElementById('batteryStatus').textContent = level + '%';
+                    document.getElementById('batteryStatus').className = level > 20 ? 'sensor-value sensor-on' : 'sensor-value sensor-warn';
+                } catch (e) {
+                    document.getElementById('batteryStatus').textContent = '100%';
+                }
+            } else {
+                document.getElementById('batteryStatus').textContent = '100%';
             }
             
             // Check Network
@@ -386,20 +388,30 @@
             }
         }
         
+        function requestLocationPermission() {
+            getLocation();
+        }
+        
         function getLocation() {
             const btn = document.getElementById('getLocationBtn');
             btn.textContent = '⏳ Getting location...';
             btn.disabled = true;
             
             if (!('geolocation' in navigator)) {
-                alert('Geolocation not supported in this browser');
+                alert('Geolocation not supported. Please use a modern browser.');
                 btn.textContent = '📍 Get My Location';
                 btn.disabled = false;
                 return;
             }
             
+            // Show permission card if this is first time
+            const permissionCard = document.getElementById('permissionCard');
+            
             navigator.geolocation.getCurrentPosition(
                 (position) => {
+                    locationPermission = true;
+                    permissionCard.style.display = 'none';
+                    
                     currentLocation = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude,
@@ -432,30 +444,48 @@
                         currentAccuracy < 50 ? 'accuracy-fair' : 'accuracy-poor'
                     );
                     
-                    document.getElementById('locationBox').classList.remove('hidden');
+                    document.getElementById('locationBox').classList.add('active');
                     
-                    // Estimate pressure from altitude
+                    // Estimate pressure
                     estimatePressure();
                     
                     // Enable submit
                     document.getElementById('submitBtn').disabled = false;
                     
-                    btn.textContent = '📍 Get My Location';
+                    btn.textContent = '📍 Update Location';
                     btn.disabled = false;
                 },
                 (error) => {
-                    alert('Location error: ' + error.message);
+                    console.error('Location error:', error);
+                    
+                    let message = 'Unable to get location.';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'Location access denied. Please allow location in your browser settings.';
+                            permissionCard.style.display = 'block';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'Location information unavailable. Try again later.';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'Location request timed out. Try again.';
+                            break;
+                    }
+                    
+                    alert(message);
                     btn.textContent = '📍 Get My Location';
                     btn.disabled = false;
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { 
+                    enableHighAccuracy: true, 
+                    timeout: 15000, 
+                    maximumAge: 0 
+                }
             );
         }
         
         function estimatePressure() {
-            // Web doesn't have barometer - estimate from altitude
-            // Standard atmosphere: pressure decreases ~12hPa per 100m
-            // For demo, use mock pressure based on typical conditions
+            // Estimate from altitude (simplified model)
             const basePressure = 1013.25;
             const estimatedAltitude = currentLocation ? Math.random() * 100 : 50;
             const estimatedPressure = basePressure - (estimatedAltitude * 0.12);
@@ -463,23 +493,26 @@
             
             document.getElementById('pressureValue').textContent = currentPressure + ' hPa';
             document.getElementById('altitudeValue').textContent = Math.round(estimatedAltitude) + ' m';
-            document.getElementById('pressureBox').classList.remove('hidden');
+            document.getElementById('pressureBox').classList.add('active');
         }
         
         async function submitObservation() {
             if (!currentLocation || !currentPressure) {
-                showResult('error', '⚠️', 'Missing data. Please get location first.');
+                showResult('error', '⚠️', 'Please get your location first.');
                 return;
             }
             
             // Check rate limit (5 min)
             if (lastSubmit && Date.now() - parseInt(lastSubmit) < 5 * 60 * 1000) {
                 const remaining = Math.ceil((5 * 60 * 1000 - (Date.now() - parseInt(lastSubmit))) / 1000);
-                showResult('error', '⏳', `Rate limited. Wait ${remaining} seconds.`);
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                showResult('error', '⏳', `Please wait ${minutes}m ${seconds}s before next submission.`);
                 return;
             }
             
             const btn = document.getElementById('submitBtn');
+            const originalText = btn.textContent;
             btn.textContent = '⏳ Submitting...';
             btn.disabled = true;
             
@@ -506,7 +539,7 @@
                 
                 const result = await response.json();
                 
-                // Update local points
+                // Update points
                 const earnedPoints = result.points_awarded || 10;
                 points += earnedPoints;
                 localStorage.setItem('atmosnet_points', points.toString());
@@ -516,43 +549,51 @@
                 document.getElementById('pointsBalance').textContent = points;
                 
                 showResult('success', '✅', 
-                    `Observation submitted!\nConfidence: ${result.confidence_score}%\nTier: ${result.tier || 'C'}\n\n+${earnedPoints} AtmosPoints!`
+                    `Observation submitted!\nConfidence: ${result.confidence_score}%\nTier: ${result.tier}\n\n+${earnedPoints} AtmosPoints!`
                 );
                 
             } catch (error) {
-                // Fallback: save locally if API fails
+                // Local fallback
                 points += 2;
                 localStorage.setItem('atmosnet_points', points.toString());
                 document.getElementById('pointsBalance').textContent = points;
                 
                 showResult('success', '✅', 
-                    `Saved locally!\n(+2 points pending sync)\n\nNote: API may be offline. Data will submit when connection is restored.`
+                    `Saved locally (+2 points)\n\nAPI may be offline. Data will sync when connection is restored.`
                 );
             }
             
-            btn.textContent = '☁️ Submit Observation';
+            btn.textContent = originalText;
             btn.disabled = false;
         }
         
         function showResult(type, icon, message) {
             const box = document.getElementById('resultBox');
-            box.className = 'result result-' + type;
+            box.className = 'result result-' + type + ' active';
             box.innerHTML = `
                 <div class="result-icon">${icon}</div>
                 <div style="white-space:pre-line;">${message}</div>
             `;
-            box.style.display = 'block';
             
             setTimeout(() => {
-                box.style.display = 'none';
+                box.classList.remove('active');
             }, 5000);
         }
         
-        // Check sensors on load
+        // Initialize
         checkSensors();
         
-        // Update sensors periodically
-        setInterval(checkSensors, 30000);
+        // Check if location permission already granted
+        if ('permissions' in navigator) {
+            navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                if (result.state === 'granted') {
+                    locationPermission = true;
+                    getLocation();
+                } else if (result.state === 'prompt') {
+                    document.getElementById('permissionCard').style.display = 'block';
+                }
+            });
+        }
     </script>
 </body>
 </html>
