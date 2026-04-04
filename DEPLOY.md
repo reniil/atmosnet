@@ -1,172 +1,153 @@
 # AtmosNet Production Deployment
 
-## Supabase Configuration ✅
+## Status: ✅ READY FOR RENDER DEPLOYMENT
 
-- **Project:** https://alakazqcztizcbmewfre.supabase.co
-- **Region:** EU Central (Frankfurt)
-- **Database Password:** Configured
-- **Next:** Run SQL migrations
+**Last Updated:** March 29, 2026
 
 ---
 
-## Deployment Options
+## What's Deployed
 
-### Option 1: Render (Recommended - Free Tier)
+### GitHub Repository
+- **URL:** https://github.com/reniil/atmosnet
+- **Branch:** main
+- **Latest Commit:** d7be259 - Production config: Updated Supabase credentials and Render deployment settings
 
-**Time:** 5 minutes
-
-1. Push code to GitHub repo `atmosnet-io/atmosnet-backend`
-2. Go to https://render.com
-3. Click "New Web Service"
-4. Connect GitHub repo
-5. Render will auto-detect `render.yaml`
-6. Click "Create Web Service"
-7. Done! URL: `https://atmosnet-backend.onrender.com`
-
-**Alternative:** Manual setup
-- Build Command: `pip install -r requirements.txt`
-- Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Environment: Import from `.env.production`
+### Files Updated:
+- ✅ `backend/.env.supabase` - New Supabase connection string
+- ✅ `backend/render.yaml` - Render deployment config (backend)
+- ✅ `render.yaml` - Root Render config
 
 ---
 
-### Option 2: Fly.io
+## Next Step: Deploy to Render
 
-**Time:** 5 minutes
+### Option 1: Manual Deploy (Recommended)
 
-```bash
-# Install flyctl
-curl -L https://fly.io/install.sh | sh
+1. **Go to Render Dashboard:**
+   - https://dashboard.render.com
 
-# Login
-fly auth login
+2. **Create New Web Service:**
+   - Click "New" → "Web Service"
+   - Connect GitHub repository: `reniil/atmosnet`
+   - Select branch: `main`
 
-# Deploy
-cd backend
-fly launch --name atmosnet-backend --region fra
+3. **Configure Service:**
+   - **Name:** atmosnet-backend
+   - **Root Directory:** (leave blank for root)
+   - **Environment:** Python 3
+   - **Build Command:** `cd backend && pip install -r requirements.txt`
+   - **Start Command:** `cd backend && uvicorn app.main_simple:app --host 0.0.0.0 --port $PORT`
 
-# Set secrets
-fly secrets set DATABASE_URL="postgresql://postgres.alakazqcztizcbmewfre:g6sv0b03B1VdxYgA@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
-fly secrets set SECRET_KEY="$(openssl rand -hex 32)"
-fly secrets set OPENWEATHER_API_KEY="your-key"
+4. **Set Environment Variables:**
+   ```
+   DATABASE_URL=postgresql://postgres:Futonnojutsu1900#@ukeecjqbalqsgtnhmcre.supabase.co:5432/postgres
+   SUPABASE_URL=https://ukeecjqbalqsgtnhmcre.supabase.co
+   SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrZWVjanFiYWxxc2d0bmhtY3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg5NzMsImV4cCI6MjA5MDM1NDk3M30.DiAgWF9H-DGgjw1UWqWgumYiGhFRE7Q4g5kXjBc9G-8
+   ENVIRONMENT=production
+   DEBUG=false
+   SECRET_KEY=atmosnet-production-secret-key-2026
+   ```
 
-# Deploy
-fly deploy
-```
+5. **Select Plan:**
+   - **Starter:** $7/month (always on, great for API)
+   - **Free:** $0 (sleeps after 15 min inactivity)
 
-**URL:** `https://atmosnet-backend.fly.dev`
+6. **Create Web Service**
 
----
-
-### Option 3: Railway
-
-**Time:** 5 minutes
-- Cost: $5/month (starter)
-
-1. Go to https://railway.app
-2. New Project → Deploy from GitHub repo
-3. Select `atmosnet-io/atmosnet-backend`
-4. Railway auto-detects Python
-5. Add environment variables:
-   - DATABASE_URL
-   - SECRET_KEY
-   - Other vars from `.env.production`
-6. Deploy
-
-**URL:** `https://atmosnet-backend.up.railway.app`
+7. **Wait for Deploy** (2-3 minutes)
 
 ---
 
-## Post-Deployment Checklist
+## Post-Deployment Verification
 
-### Test API Endpoints
+Once deployed, test these endpoints:
 
 ```bash
 # Health check
-curl https://your-backend-url/health/
+curl https://atmosnet-backend.onrender.com/health/
 
-# Submit observation
-curl -X POST https://your-backend-url/v1/observations/ \
+# API info
+curl https://atmosnet-backend.onrender.com/
+
+# Submit observation (POST)
+curl -X POST https://atmosnet-backend.onrender.com/v1/observations/ \
   -H "Content-Type: application/json" \
   -d '{
-    "device_id_hash": "test...",
-    "timestamp": "2024-03-25T12:00:00Z",
+    "device_id_hash": "abc123",
     "pressure_hpa": 1013.25,
-    "latitude_grid": 6.5244,
-    "longitude_grid": 3.3792
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "altitude_m": 50.0
   }'
-
-# Check balance
-curl https://your-backend-url/v1/rewards/balance/test...
-
-# Enterprise API
-curl "https://your-backend-url/v2/current?lat=6.5244&lon=3.3792&x-api-key=free_demo"
-```
-
-### Configure Custom Domain (atmosnet.io)
-
-1. Buy domain at Namecheap/Cloudflare
-2. Add DNS records:
-   - `api.atmosnet.io` → CNAME to your-backend-url
-3. Configure SSL certificate in Render/Fly/Railway
-
-### Mobile App Configuration
-
-Update mobile app API URL:
-
-```typescript
-// mobile/services/api.ts
-const API_BASE_URL = 'https://api.atmosnet.io'; // Production
-// const API_BASE_URL = 'http://localhost:8000'; // Development
 ```
 
 ---
 
-## Monitoring
+## Troubleshooting
 
-### Render Dashboard
-- URL: https://dashboard.render.com
-- View logs, metrics, deployments
+### Build Fails
+- Check `requirements.txt` exists in `/backend/`
+- Verify Python version compatibility (3.9-3.11)
 
-### Fly.io Dashboard
-- URL: https://fly.io/dashboard
-- View metrics, scale, logs
+### Database Connection Fails
+- Verify Supabase is running: https://ukeecjqbalqsgtnhmcre.supabase.co
+- Check tables exist in Database → Tables
+- Confirm password hasn't changed
 
-### Supabase Dashboard
-- URL: https://alakazqcztizcbmewfre.supabase.co
-- Monitor database, query performance
-
----
-
-## Scaling Strategy
-
-### Phase 1 (Launch): Free Tier
-- Render: Free web service (sleeps after 15 min inactivity)
-- Supabase: Free tier (500MB, 2GB egress)
-- Cost: $0
-
-### Phase 2 (Growth): ~$50/month
-- Render: Starter ($7/month)
-- Supabase: Pro ($25/month)
-- Redis: Upstash (free tier)
-- Cost: ~$32/month
-
-### Phase 3 (Scale): ~$200/month
-- Render: Standard ($25/month)
-- Supabase: Pro + additional storage
-- Redis: Upstash paid
-- Kong Gateway: Self-hosted or Kong Cloud
-- Cost: ~$150/month
+### API Returns 500
+- Check Render logs: Dashboard → Service → Logs
+- Verify `main_simple.py` exists and runs locally
 
 ---
 
-## Next Steps
+## Architecture After Deploy
 
-1. ⏳ Run SQL migrations in Supabase
-2. ⏳ Choose deployment platform (Render/Fly/Railway)
-3. ⏳ Deploy backend
-4. ⏳ Test endpoints
-5. ⏳ Configure mobile app for production
-6. ⏳ Submit to App Store / Google Play
+```
+┌─────────────────────────────────────────────┐
+│           Render (atmosnet-backend)        │
+│  ┌───────────────────────────────────────┐  │
+│  │  FastAPI (uvicorn)                  │  │
+│  │  ┌───────────────────────────────┐  │  │
+│  │  │ main_simple.py (no Redis)    │  │  │
+│  │  └───────────────────────────────┘  │  │
+│  └───────────────────────────────────────┘  │
+└────────────────────┬────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────┐
+│        Supabase (PostgreSQL + PostGIS)      │
+│  ┌───────────────────────────────────────┐  │
+│  │  • observations                       │  │
+│  │  • validated_observations             │  │
+│  │  • accounts (points ledger)           │  │
+│  │  • transactions                       │  │
+│  │  • forecast_grids                     │  │
+│  │  • api_keys                           │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
 
-**Estimated time to production:** 30 minutes after SQL migrations
+---
+
+## Cost Breakdown
+
+| Service | Plan | Monthly Cost |
+|---------|------|--------------|
+| Render | Starter | $7 |
+| Supabase | Free Tier | $0 |
+| **Total** | | **$7/month** |
+
+---
+
+## Next Steps After Deploy
+
+1. ✅ Test API endpoints
+2. ⏳ Configure mobile app to use production URL
+3. ⏳ Set up custom domain (optional)
+4. ⏳ Add monitoring (UptimeRobot)
+5. ⏳ Configure Upstash Redis for rate limiting
+
+---
+
+**Ready to deploy? Go to https://dashboard.render.com**

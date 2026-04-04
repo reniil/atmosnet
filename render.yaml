@@ -5,10 +5,10 @@ services:
     plan: starter
     pythonVersion: "3.11"
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app.main_simple:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        value: postgresql://postgres:Futonnojutsu1900%23@ukeecjqbalqsgtnhmcre.supabase.co:5432/postgres
+        value: postgresql://postgres.alakazqcztizcbmewfre:g6sv0b03B1VdxYgA@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
       - key: REDIS_URL
         value: redis://localhost:6379/0
       - key: ENVIRONMENT
@@ -18,7 +18,7 @@ services:
       - key: SECRET_KEY
         value: atmosnet-production-secret-key-2026
       - key: SUPABASE_URL
-        value: https://ukeecjqbalqsgtnhmcre.supabase.co
+        value: https://alakazqcztizcbmewfre.supabase.co
       - key: SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrZWVjanFiYWxxc2d0bmhtY3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg5NzMsImV4cCI6MjA5MDM1NDk3M30.DiAgWF9H-DGgjw1UWqWgumYiGhFRE7Q4g5kXjBc9G-8
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsYWthenFjenRpemNibWV3ZnJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NzMwNzMsImV4cCI6MjA5MDA0OTA3M30.p6EKiErEpKsiqGnBTzFqynEf4in5hlqv8OPjx5xd88w
     healthCheckPath: /health/
